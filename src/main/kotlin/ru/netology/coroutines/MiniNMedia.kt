@@ -1,37 +1,46 @@
 package ru.netology.coroutines
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import okio.IOException
 import ru.netology.coroutines.dto.PostWithComments
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlin.coroutines.EmptyCoroutineContext
 
-fun main() {
-    val postsHolder = HandMadeSuspend
+private val actualTime = { now: Long ->
+    SimpleDateFormat("dd MMMM, H:mm", Locale.US).format(Date(now))
+}
 
+fun main() {
     CoroutineScope(EmptyCoroutineContext).launch {
-        // Если есть вероятность, что один из запросов может завершиться
-        // ошибкой, тогда можно использовать конструкцию try-catch
         try {
-            val posts = postsHolder.getPosts()
-            // Чтобы запараллелить запросы комментариев, можно использовать
-            // функцию async, которая возвращает объекты типа Deferred<T>,
-            // являющиеся чем-то наподобие отложенного вызова.
-            // В итоге результаты приходят от всех Deferred-объектов практически
-            // одновременно.
-            val result = posts.map {
+            val posts = HandMadeSuspend.getPosts()
+            val postsWithComments = posts.map {
                 async {
-                    PostWithComments(it, postsHolder.getComments(it.id))
+                    PostWithComments(it, HandMadeSuspend.getComments(it.id))
                 }
             }
-                // Чтобы дождаться результатов от всех async, нужно указать await
                 .awaitAll()
-            println(result)
+            val postsToString = postsWithComments.map {
+                async {
+                        showPosts(it)
+                }
+            }
+                .awaitAll()
+            println(postsToString)
         } catch (e: IOException) {
             e.printStackTrace()
         }
     }
-    Thread.sleep(3_000)
+    Thread.sleep(1_000)
 }
+
+private suspend fun showPosts(item: PostWithComments) =
+    "\nPost #${item.post.id}: ${HandMadeSuspend.getAuthorById(item.post.authorId).name}, ${actualTime(item.post.published)}\n" +
+            "${item.comments.map {
+                CoroutineScope(EmptyCoroutineContext).async {
+                    "\n  Comment #${it.id}: ${HandMadeSuspend.getAuthorById(it.authorId).name}, ${actualTime(it.published)}"
+                }
+            }
+                .awaitAll()
+                .ifEmpty { "<no comments>" }}"

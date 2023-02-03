@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
+import ru.netology.coroutines.dto.Author
 import ru.netology.coroutines.dto.Comment
 import ru.netology.coroutines.dto.Post
 import java.io.IOException
@@ -16,18 +17,20 @@ import kotlin.coroutines.suspendCoroutine
 
 object HandMadeSuspend {
     private val client = OkHttpClient.Builder()
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-        })
-        .connectTimeout(30, TimeUnit.SECONDS)
+//        .addInterceptor(HttpLoggingInterceptor().apply {
+//            level = HttpLoggingInterceptor.Level.BASIC
+//        })
+//        .connectTimeout(30, TimeUnit.SECONDS)
         .build()
     private const val BASE_URL = "http://192.168.31.16:9999"
     private const val API_SUFFIX = "/api"
     private const val POSTS_PATH = "${API_SUFFIX}/posts"
     private val commentsPath = { postId: Long -> "${POSTS_PATH}/$postId/comments" }
+    private val authorPath = { authorId: Long -> "${API_SUFFIX}/authors/$authorId" }
     private val gson = Gson()
     private val postsTypeToken = object : TypeToken<List<Post>>() {}
     private val commentsTypeToken = object : TypeToken<List<Comment>>() {}
+    private val authorTypeToken = object : TypeToken<Author>() {}
 
     private suspend fun makeRequest(url: String): Response =
         suspendCoroutine { continuation ->
@@ -62,4 +65,7 @@ object HandMadeSuspend {
 
     suspend fun getComments(postId: Long): List<Comment> =
         parseResponse("${BASE_URL}${commentsPath(postId)}", commentsTypeToken)
+
+    suspend fun getAuthorById(authorId: Long): Author =
+        parseResponse("${BASE_URL}${authorPath(authorId)}", authorTypeToken)
 }
